@@ -60,14 +60,20 @@ class MyHTMLParser(HTMLParser):
 
 
 class Item:
-    def __init__(self, title, link):
+    def __init__(self, title, link, stackable=None, stacks=None, renewable=None):
         self.title = title
         self.link = link
         print(self.title + ':' + self.link)
+        self.stackable = stackable
         try:
-            self.page = get_page(self.link[1:].replace('%27', "'"))
-            stackable_index = self.page.index('Stackable')
+            self.stacks = int(stacks)
+        except ValueError:
+            self.stacks = None
+        self.renewable = renewable
+        if self.stackable is None or self.renewable is None:
             try:
+                self.page = get_page(self.link[1:].replace('%27', "'"))
+                stackable_index = self.page.index('Stackable')
                 stackable_str = find_element(self.page, 'p', stackable_index)[:-1]
                 self.stackable = 'Yes' in stackable_str
                 if self.stackable:
@@ -76,28 +82,21 @@ class Item:
                     self.stacks = int(stackable_str[p1 + 1: p2])
                 else:
                     self.stacks = None
-            except ValueError:
                 self.stackable = None
                 self.stacks = None
-            try:
                 renewable_index = self.page.index('Renewable')
                 renewable_str = find_element(self.page, 'p', renewable_index)[:-1]
                 self.renewable = 'Yes' in renewable_str
-            except ValueError:
-                self.renewable = None
-        except (KeyError, ValueError) as e:
-            print(e)
-            self.stackable = None
-            self.stacks = None
-            self.renewable = None
+            except (KeyError, ValueError) as e:
+                print(e)
 
     def __repr__(self):
         return self.title
 
 
-if __name__ == '__main__':
+def get_results_from_wiki():
+    global results
     body = get_page('Item')
-
     begin = 0
     results = []
     while phrase in body[begin:]:
@@ -110,6 +109,22 @@ if __name__ == '__main__':
         results.append(Item(next_title, next_href))
         begin = next_index + 1
 
+    return results
+
+
+def get_results_from_file():
+    results = []
+
+    with open('items.csv', newline='') as csv_file:
+        reader = csv.reader(csv_file)
+        next(reader)
+        for result in reader:
+            results.append(Item(result[0], result[1], result[2], result[3], result[4]))
+
+    return results
+
+
+def save_to_file():
     table = [[item.title, item.link, item.stackable, item.stacks, item.renewable] for item in results]
     pprint(table)
     with open('items.csv', 'w', newline='') as csv_file:
@@ -118,8 +133,19 @@ if __name__ == '__main__':
         for row in table:
             writer.writerow(row)
 
-    print('16 stacking items:')
-    print(len(list(filter(lambda item: item.stacks == 16, results))))
-    print('64 stacking items:')
-    print(len(list(filter(lambda item: item.stacks == 64, results))))
 
+if __name__ == '__main__':
+    results = get_results_from_file()
+    # if not results:
+    #     results = get_results_from_wiki()
+    #     save_to_file()
+
+    print(f'Total items: {len(results)}')
+    print('16 stacking items:')
+    print(f'Total: {len(list(filter(lambda item: item.stacks == 16, results)))}')
+    print(f'Renewable: {len(list(filter(lambda item: item.stacks == 16 and item.renewable, results)))}')
+    print(f'Non-renewable: {len(list(filter(lambda item: item.stacks == 16 and not item.renewable, results)))}')
+    print('64 stacking items:')
+    print(f'Total: {len(list(filter(lambda item: item.stacks == 64, results)))}')
+    print(f'Renewable: {len(list(filter(lambda item: item.stacks == 64 and item.renewable, results)))}')
+    print(f'Non-renewable: {len(list(filter(lambda item: item.stacks == 64 and not item.renewable, results)))}')
