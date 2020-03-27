@@ -1,4 +1,6 @@
+import csv
 from html.parser import HTMLParser
+from pprint import pprint
 
 import requests
 
@@ -30,9 +32,6 @@ def get_page(page) -> str:
         return get_page(next_href[1:])
 
     return body
-
-
-body = get_page('Item')
 
 
 def find_element(body, element, start_index):
@@ -68,29 +67,59 @@ class Item:
         try:
             self.page = get_page(self.link[1:].replace('%27', "'"))
             stackable_index = self.page.index('Stackable')
-            stackable_str = find_element(self.page, 'p', stackable_index)[:-1]
-            self.stackable = 'No' not in stackable_str
+            try:
+                stackable_str = find_element(self.page, 'p', stackable_index)[:-1]
+                self.stackable = 'Yes' in stackable_str
+                if self.stackable:
+                    p1 = stackable_str.index('(')
+                    p2 = stackable_str.index(')')
+                    self.stacks = int(stackable_str[p1 + 1: p2])
+                else:
+                    self.stacks = None
+            except ValueError:
+                self.stackable = None
+                self.stacks = None
+            try:
+                renewable_index = self.page.index('Renewable')
+                renewable_str = find_element(self.page, 'p', renewable_index)[:-1]
+                self.renewable = 'Yes' in renewable_str
+            except ValueError:
+                self.renewable = None
         except (KeyError, ValueError) as e:
-            # print("Error with " + self.title)
             print(e)
             self.stackable = None
+            self.stacks = None
+            self.renewable = None
 
     def __repr__(self):
         return self.title
 
 
-begin = 0
-results = []
-while phrase in body[begin:]:
-    next_index = body.index(phrase, begin)
-    href_index = body.index(href, next_index)
-    title_index = body.index(title, next_index)
+if __name__ == '__main__':
+    body = get_page('Item')
 
-    next_href = find_quote(body, href_index)
-    next_title = find_quote(body, title_index)
-    results.append(Item(next_title, next_href))
-    begin = next_index + 1
+    begin = 0
+    results = []
+    while phrase in body[begin:]:
+        next_index = body.index(phrase, begin)
+        href_index = body.index(href, next_index)
+        title_index = body.index(title, next_index)
 
-print([result.stackable for result in results])
+        next_href = find_quote(body, href_index)
+        next_title = find_quote(body, title_index)
+        results.append(Item(next_title, next_href))
+        begin = next_index + 1
 
-item0 = results[0]
+    table = [[item.title, item.link, item.stackable, item.stacks, item.renewable] for item in results]
+    pprint(table)
+    with open('items.csv', 'w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(['title', 'link', 'stackable', 'stacks', 'renewable'])
+        for row in table:
+            writer.writerow(row)
+
+    print('16 stacking items:')
+    print(len(list(filter(lambda item: item.stacks == 16, results))))
+    print('64 stacking items:')
+    print(len(list(filter(lambda item: item.stacks == 64, results))))
+
