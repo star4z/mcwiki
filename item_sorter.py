@@ -21,7 +21,7 @@ def get_page(page) -> str:
 
 
 class Item:
-    def __init__(self, title, stackable=None, stacks=None, renewable=None, fuel=None, smeltable=None):
+    def __init__(self, title, stackable=None, stacks=None, renewable=None, fuel=None, smeltable=None, compostable=None):
         self.title = title
         self.stackable = stackable
         try:
@@ -31,6 +31,7 @@ class Item:
         self.renewable = renewable
         self.fuel = fuel
         self.smeltable = smeltable
+        self.compostable = compostable
 
     def __repr__(self):
         return self.title
@@ -60,10 +61,10 @@ def get_item(title, link):
         renewable = None
 
     fuel = bool(soup.find(True, text='Fuel'))
-
     smeltable = bool(soup.find(True, text='Smelting ingredient'))
+    compostable = bool(soup.find(True, text='Composting'))
 
-    return Item(title, stackable, stacks, renewable, fuel, smeltable)
+    return Item(title, stackable, stacks, renewable, fuel, smeltable, compostable)
 
 
 def get_items():
