@@ -21,26 +21,19 @@ def get_page(page) -> str:
 
 
 class Item:
-    def __init__(self, title, stackable=None, stacks=None, renewable=None):
+    def __init__(self, title, stackable=None, stacks=None, renewable=None, fuel=None, smeltable=None):
         self.title = title
         self.stackable = stackable
-        self.stacks = stacks
+        try:
+            self.stacks = int(stacks)
+        except TypeError:
+            self.stacks = None
         self.renewable = renewable
+        self.fuel = fuel
+        self.smeltable = smeltable
 
     def __repr__(self):
         return self.title
-
-
-def get_items():
-    body = get_page('/Item')
-    soup = BeautifulSoup(body, 'html.parser')
-    results = []
-    for span in soup.find_all('span', 'item-sprite'):
-        a = span.parent.a
-        print(a.get_text())
-        results.append(get_item(a.get_text(), a['href']))
-
-    return results
 
 
 def get_item(title, link):
@@ -66,7 +59,23 @@ def get_item(title, link):
     except (TypeError, AttributeError):
         renewable = None
 
-    return Item(title, stackable, stacks, renewable)
+    fuel = bool(soup.find(True, text='Fuel'))
+
+    smeltable = bool(soup.find(True, text='Smelting ingredient'))
+
+    return Item(title, stackable, stacks, renewable, fuel, smeltable)
+
+
+def get_items():
+    body = get_page('/Item')
+    soup = BeautifulSoup(body, 'html.parser')
+    results = []
+    for span in soup.find_all('span', 'item-sprite'):
+        a = span.parent.a
+        print(a.get_text())
+        results.append(get_item(a.get_text(), a['href']))
+
+    return results
 
 
 def boolean_with_versioning(value_str):
@@ -108,12 +117,12 @@ def get_results_from_file():
 
 
 def save_to_file(items):
-    table = [[item.title, item.stackable, item.stacks, item.renewable] for item in items]
+    table = [list(item.__dict__.values()) for item in items]
     pprint(table)
     with open('items.csv', 'w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         # Header for convenience
-        writer.writerow(['title', 'stackable', 'stacks', 'renewable'])
+        writer.writerow(list(items[0].__dict__.keys()))
         for row in table:
             writer.writerow(row)
 
@@ -125,7 +134,14 @@ if __name__ == '__main__':
         results = get_blocks() + get_items()
         save_to_file(results)
 
-    print(f'Total items: {len(results)}')
+    print()
+    print(f'All items: {len(results)}')
+    print(f'Renewable: {len(list(filter(lambda item: item.renewable, results)))}')
+    non_renewables = list(filter(lambda item: not item.renewable, results))
+    print(f'Non-renewable: {len(non_renewables)}')
+    print(non_renewables)
+    print(f'Stackable: {len(list(filter(lambda item: item.stackable, results)))}')
+    print(f'Non-stackable: {len(list(filter(lambda item: not item.stackable, results)))}')
     print('16 stacking items:')
     print(f'Total: {len(list(filter(lambda item: item.stacks == 16, results)))}')
     print(f'Renewable: {len(list(filter(lambda item: item.stacks == 16 and item.renewable, results)))}')
