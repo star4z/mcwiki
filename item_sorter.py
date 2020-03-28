@@ -84,7 +84,11 @@ def get_blocks():
 
     results = []
     for cell in cells:
-        a = cell.find_all('a')[-1]
+        all_a = cell.find_all('a')
+        try:
+            a = all_a[1]
+        except IndexError:
+            a = all_a[0]
         block_title = a.string
         block_link = a['href']
 
